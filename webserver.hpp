@@ -1,0 +1,127 @@
+
+#ifndef WEBSERVER_HPP
+#define WEBSERVER_HPP
+
+#include "server.hpp"
+#include "block_malloc.hpp"
+#include "block_list.hpp"
+
+// Maximum number of applications that can be registered with this sever
+#define MAX_APPS (32)
+
+class Parameter {
+    const char* _name;
+    const char* _value;
+
+    public:
+    Parameter(const char* name, const char* value);
+    void* operator new(size_t size, Block* block);
+    const char* name() {return _name;}
+    const char* value() {return _value;}
+    int asInt();
+    uint32_t asRgb();
+};
+
+class Header {
+    const char* _name;
+    const char* _value;
+
+    public:
+    Header(const char* name, const char* value);
+    void* operator new(size_t size, Block* block);
+    const char* name() {return _name;}
+    const char* value() {return _value;}
+    
+    const char* toSend(Block* block);
+};
+
+class HttpRequest{
+
+    Block* block;   // memory block(s) for this request
+    char* _verb;     // GET etc.
+    char* _path;     //  /wombles
+    char* _protocol; // HTTP/1.1
+    BlockList<Parameter> _parameters;
+    BlockList<Header> _headers;
+    char* _body;
+
+    const char* parseMessage;
+
+    int parseInitialLine(char*& here, char*& there, int length);
+    int parseHeaderLine(char*& here, char*& there, int length);
+    int parseBody(char*& here, char*& there, int length);
+
+    public:
+    HttpRequest(Block* block);
+    ~HttpRequest();
+ 
+    const char* verb() { return _verb;}
+    const char* path() { return _path;}
+    const char* protocol() { return _protocol;}
+    const char* failureMessage() {return parseMessage;}
+    BlockList<Parameter>& parameters() {return _parameters;}
+    BlockList<Header>& headers() {return _headers;}
+  
+    void parse(void* data, uint16_t length);
+};
+
+class HttpResponse{
+    Block* block;
+    BlockList<Header> _headers;
+    int statusCode;
+    const char* statusMsg;
+    const char* body;
+
+    public:
+    HttpResponse(Block* block);
+
+    void setStatus(int code, const char* msg);
+    void addHeader(const char* key, const char* body);
+    void setBody(const char* payload);
+
+    const char* protocolLine();
+    BlockList<Header>& headers() {return _headers;}
+    const char* getBody() { return body;}
+
+};
+
+
+class HttpTransaction {
+    Block* block;  // memory for this and children
+    HttpRequest _request;
+    HttpResponse _response;
+
+    public:
+    HttpTransaction(Block* block);
+    ~HttpTransaction();
+    void* operator new(size_t size, Block* block);
+    void operator delete  ( void* ptr ) noexcept {} // need to call block->free for memory.
+
+    HttpRequest& request() { return _request;}
+    HttpResponse& response() { return _response;}
+};
+
+class WebApp {
+    public:
+    virtual bool matches(const char* verb, const char* path) = 0;
+    virtual void process(HttpRequest& request, HttpResponse& response) = 0;
+};
+
+
+class Webserver: public ServerApplication {
+    
+    WebApp* apps[MAX_APPS];
+    uint appCount;
+
+    public:
+    virtual void connected(Connection* connection);
+    virtual void closed(Connection* connection);
+    virtual err_t receive(Connection* connection, void* data, uint16_t length);
+    virtual err_t poll(Connection* connection);
+    virtual void error(Connection* connection, err_t err);
+    virtual err_t sent(Connection* connection, u16_t bytesSent);
+
+    bool addAppliction(WebApp* app);
+};
+
+#endif
