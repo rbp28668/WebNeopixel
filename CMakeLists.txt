@@ -14,7 +14,6 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 add_compile_definitions( 
-        PICO_BOARD=pico_w
         PICO_WIFI_SSID="$ENV{WIFI_SSID}" 
         PICO_WIFI_PASSWORD="$ENV{WIFI_PASSWORD}" 
 )

@@ -1,6 +1,6 @@
 
-
-#include "dma.h"
+#include "hardware/dma.h"
+#include "dma.hpp"
 
 Dma::Dma() : Dma(dma_claim_unused_channel(true)) {}
 
