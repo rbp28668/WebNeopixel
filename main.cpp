@@ -17,11 +17,14 @@ NeopixelWebapp webapp;
 
 extern void run_neopixel();
 
+extern unsigned int checkCode();
 
 int main() {
+
     stdio_init_all();
     printf("\n\nNeoPixel Startup\n");
 
+    printf("Startup checksum %08x\n",checkCode());
     // start neopixels on cpu 1
     multicore_launch_core1(run_neopixel);
 
@@ -43,6 +46,8 @@ int main() {
 
             TcpServer server(&webserver);
             if(server.open(8080)){
+                printf("Run server checksum %08x\n",checkCode());
+
                 server.run();
             }
             server.close();

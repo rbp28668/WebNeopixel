@@ -1,32 +1,15 @@
 
 #include "webserver.hpp"
-
+#include "webapp404.hpp"
 
 
 static BlockPool blockPool;  // big lump of static memory to allocate from.
 
+static Webapp404 webapp404;  // default to generate 404 not found.
+
+
 ////////////////////////////////////////////////////////////////////
 // Parameter
-
-/// @brief 
-/// @param name 
-/// @param value 
-Parameter::Parameter(const char* name, const char* value)
-: _name(name)
-, _value(value)
-{
-    printf("Parameter %s=%s\n", name, value);
-}
-
-/// @brief 
-/// @param size 
-/// @param block 
-/// @return 
-void* Parameter::operator new(size_t size, Block* block){
-    void* p = block->allocate(size);
-    //printf("Parameter size %d new at %08x\n", size ,p);
-    return p;
-}
 
 /// @brief Convenience method to return value as an int.
 /// @return value as an int.
@@ -45,25 +28,6 @@ uint32_t Parameter::asRgb(){
 
 ////////////////////////////////////////////////////////////////////
 // Header
-
-/// @brief 
-/// @param name 
-/// @param value 
-Header::Header(const char* name, const char* value)
-: _name(name)
-, _value(value)
-{
-   printf("Create Header %s: %s\n", name, value);
-    
-}
-
-/// @brief 
-/// @param size 
-/// @param block 
-/// @return 
-void* Header::operator new(size_t size, Block* block){
-    return block->allocate(size);
-}
 
 // Build up a string ready for transmission.
 const char* Header::toSend(Block* block){
@@ -120,6 +84,7 @@ HttpRequest::~HttpRequest(){
 
  
 int HttpRequest::parseInitialLine(char*& here, char*& there, int length) {
+ 
    // First, the HTTP verb - GET, POST etc.    
     this->_verb = there;
     while(length > 0 && !isspace(*here)){
@@ -175,7 +140,7 @@ int HttpRequest::parseInitialLine(char*& here, char*& there, int length) {
                 *there++ = 0;
                 --length;
                 Parameter* p = new(block) Parameter(key, value);
-                this->_parameters.add(block, p);
+                this->_Parameters.add(block, p);
                 key = there;    // start of new key
                 value = 0;
             } else {
@@ -186,7 +151,7 @@ int HttpRequest::parseInitialLine(char*& here, char*& there, int length) {
         *there++ = 0; // terminate last value
         // Process last key/value pair
         Parameter* p = new(block) Parameter(key, value);
-        this->_parameters.add(block, p);
+        this->_Parameters.add(block, p);
     }
 
     // skip spaces
@@ -423,8 +388,6 @@ err_t Webserver::receive(Connection* connection, void* data, uint16_t length){
         return ERR_OK;
     }
 
-    Parameter* test = new(block)Parameter("Hello", "World");
-
     printf("Create transaction\n");
     HttpTransaction* tx = new(block) HttpTransaction(block);
     printf("Parsing request\n");
@@ -442,46 +405,37 @@ err_t Webserver::receive(Connection* connection, void* data, uint16_t length){
     // response (may need to be built up and sent piecemeal)
 
     printf("Looking for webapp for %s : %s\n",tx->request().verb(), tx->request().path());
-    WebApp* app = 0;
+    WebApp* app = &webapp404;
     for(int i=0; i<appCount; ++i){
         if(apps[i]->matches(tx->request().verb(), tx->request().path())) {
             app = apps[i];
-            printf("Processing request with webapp\n");
-            app->process(tx->request(), tx->response());
         }
     }
-    if(app){ // Found an app to process the request
-        const char* value = tx->response().protocolLine();
-        printf("Sending response %s\n", value);
+    app->process(tx->request(), tx->response());
+ 
+    const char* value = tx->response().protocolLine();
+    printf("Sending response %s\n", value);
+    connection->send((uint8_t*)value, strlen(value));
+
+    BlockListIter<Header> iter = tx->response().headers().iter();
+    Header* h;
+    while( (h = iter.next()) != 0){
+        value = h->toSend(block);
+        printf("Sending header %s\n", value);
         connection->send((uint8_t*)value, strlen(value));
+    }
+    
+    // Blank line after any headers.
+    value = "\r\n";
+    connection->send((uint8_t*)value, strlen(value));
 
-        BlockListIter<Header> iter = tx->response().headers().iter();
-        Header* h;
-        while( (h = iter.next()) != 0){
-            value = h->toSend(block);
-            printf("Sending header %s\n", value);
-            connection->send((uint8_t*)value, strlen(value));
-        }
-        
-        // Blank line after any headers.
-        value = "\r\n";
+    // Followed by (optional) body.
+    value = tx->response().getBody();
+    if(value){
         connection->send((uint8_t*)value, strlen(value));
-
-        // Followed by (optional) body.
-        value = tx->response().getBody();
-        if(value){
-            connection->send((uint8_t*)value, strlen(value));
-        }
-    } else {
-        const char* header = "HTTP/1.1 404 Not Found\r\n"
-                            "Server: PicoW\r\n"
-                            "Content-Type: text/html\r\n"
-                            "\r\n";
-        printf("Sending 404\n");
-        connection->send((uint8_t*)header, strlen(header));
-
     }
 
+    // TODO should really only do this when all the data is sent.
     block->free(); // Assumes whole process in one hit.
 
     return ERR_OK;
@@ -505,7 +459,8 @@ err_t Webserver::sent(Connection* connection, u16_t bytesSent){
 }
 
 bool Webserver::addAppliction(WebApp* app){
-     if(appCount == MAX_APPS) return false;
-     apps[appCount++] = app;
-     return true;
+    assert(app);
+    if(appCount == MAX_APPS) return false;
+    apps[appCount++] = app;
+    return true;
 }

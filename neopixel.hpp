@@ -76,6 +76,8 @@ class NeopixelGrid {
     void tick(); // to run commands, animate etc.
     
     bool run(Command* cmd); // true if accepted to run.
+
+    void setAsync(uint32_t rgb, uint8_t white);
 };
 
 

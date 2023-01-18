@@ -11,11 +11,22 @@
 #define BLOCK_SIZE 4096
 #define BLOCK_COUNT 16
 
+// Set this to use calloc to 
+// allocate the main blocks of memory
+// Otherwise just big array.
+//#define BLOCK_USE_CALLOC 1
+
 class BlockPool;
 
+#define _BLOCK_POOL_GUARD 0xAAAAAAAA
 class Block {
+    int guard0;
+    #ifdef BLOCK_USE_CALLOC
+    uint8_t* block;
+    #else
     uint8_t block[BLOCK_SIZE];
-    int guard;
+    #endif
+    int guard1;
     uint used_count;
     uint free_count;
     bool allocated;     // whether this block is allocated or free.
@@ -27,6 +38,7 @@ class Block {
 
     public:
     Block();
+    ~Block();
 
     void* allocate(size_t bytes);
     void allocateBlock(BlockPool* pool);

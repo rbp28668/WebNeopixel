@@ -33,7 +33,7 @@ void NeopixelWebapp::process( HttpRequest& request, HttpResponse& response){
 
     printf("Neopixel Webapp Processing request for %s\n",request.path());
 
-    BlockListIter<Parameter> iter = request.parameters().iter();
+    BlockListIter<Parameter> iter = request.Parameters().iter();
     uint32_t rgb = 0;
     int w = 0;
     Parameter* p;
@@ -44,13 +44,8 @@ void NeopixelWebapp::process( HttpRequest& request, HttpResponse& response){
     }
 
     printf("Set colour %06X, white %d\n", rgb,w);
-    // TODO - this logic probably ought to be in neopixel.
-    Command cmd;
-    cmd.code = 1; // set colour
-    cmd.params[0] = rgb;
-    cmd.params[1] = w;
-    grid.run(&cmd);
-
+    grid.setAsync(rgb, w);
+ 
     response.setStatus(200,"OK");
     response.addHeader("Server", "PicoW");
     response.addHeader("Content-Type", "text/html");

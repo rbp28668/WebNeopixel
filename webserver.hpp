@@ -14,10 +14,13 @@ class Parameter {
     const char* _value;
 
     public:
-    Parameter(const char* name, const char* value);
-    void* operator new(size_t size, Block* block);
+    Parameter(const char* name, const char* value) : _name(name), _value(value) {}
+    void* operator new(size_t size, Block* block) { return block->allocate(size);}
+    void operator delete  ( void* ptr ) noexcept {assert(false);} 
     const char* name() {return _name;}
     const char* value() {return _value;}
+    void setName(const char* name) { _name = name;}
+    void setValue(const char* value) { _value = value;}
     int asInt();
     uint32_t asRgb();
 };
@@ -27,8 +30,9 @@ class Header {
     const char* _value;
 
     public:
-    Header(const char* name, const char* value);
-    void* operator new(size_t size, Block* block);
+    Header(const char* name, const char* value): _name(name), _value(value) {}
+    void* operator new(size_t size, Block* block) { return block->allocate(size);}
+    void operator delete  ( void* ptr ) noexcept {assert(false);} 
     const char* name() {return _name;}
     const char* value() {return _value;}
     
@@ -41,7 +45,7 @@ class HttpRequest{
     char* _verb;     // GET etc.
     char* _path;     //  /wombles
     char* _protocol; // HTTP/1.1
-    BlockList<Parameter> _parameters;
+    BlockList<Parameter> _Parameters;
     BlockList<Header> _headers;
     char* _body;
 
@@ -59,7 +63,7 @@ class HttpRequest{
     const char* path() { return _path;}
     const char* protocol() { return _protocol;}
     const char* failureMessage() {return parseMessage;}
-    BlockList<Parameter>& parameters() {return _parameters;}
+    BlockList<Parameter>& Parameters() {return _Parameters;}
     BlockList<Header>& headers() {return _headers;}
   
     void parse(void* data, uint16_t length);
@@ -95,7 +99,7 @@ class HttpTransaction {
     HttpTransaction(Block* block);
     ~HttpTransaction();
     void* operator new(size_t size, Block* block);
-    void operator delete  ( void* ptr ) noexcept {} // need to call block->free for memory.
+    void operator delete  ( void* ptr ) noexcept {assert(false);} // need to call block->free for memory.
 
     HttpRequest& request() { return _request;}
     HttpResponse& response() { return _response;}

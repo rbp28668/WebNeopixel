@@ -112,7 +112,6 @@ bool NeopixelGrid::run(Command* cmd){
 
 
 void run_neopixel() {
-   
     grid.send();
     while(true) {
         grid.tick();
@@ -120,3 +119,10 @@ void run_neopixel() {
     }
 }
 
+void NeopixelGrid::setAsync(uint32_t rgb, uint8_t white){
+    Command cmd;
+    cmd.code = 1; // set colour
+    cmd.params[0] = rgb;
+    cmd.params[1] = white;
+    run(&cmd);
+}

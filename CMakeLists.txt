@@ -36,7 +36,9 @@ server.cpp
 webserver.cpp
 block_malloc.cpp
 block_list.cpp
+webapp404.cpp
 neopixel_webapp.cpp
+crc32.cpp
 )
 
 target_include_directories(neopixel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
