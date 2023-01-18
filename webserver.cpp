@@ -192,8 +192,15 @@ int HttpRequest::parseInitialLine(char*& here, char*& there, int length) {
     return length;
 }
 
-//Accept-Encoding: gzip, deflate
-//Accept-Language: en-GB,en-US;q=0.9,en;q=0.8
+
+/// @brief Parses a single header line of an HTTP request.
+/// e.g.:
+/// Accept-Encoding: gzip, deflate
+/// Accept-Language: en-GB,en-US;q=0.9,en;q=0.8
+/// @param here 
+/// @param there 
+/// @param length 
+/// @return 
 int HttpRequest::parseHeaderLine(char*& here, char*& there, int length){
 
     if(length == 0) return 0;
@@ -237,6 +244,11 @@ int HttpRequest::parseHeaderLine(char*& here, char*& there, int length){
     return length;
 }
 
+/// @brief Parses the body of the HTTP request.
+/// @param here 
+/// @param there 
+/// @param length 
+/// @return 
 int HttpRequest::parseBody(char*& here, char*& there, int length){
     if(length){
         _body = there;
@@ -267,12 +279,10 @@ void HttpRequest::parse(void* data, uint16_t length){
     // necessary and noting where the fields are.
     char* here = (char*)data;
 
-    printf("Parsing initial line\n");
     length = parseInitialLine(here, there, length);
 
     // Look for headers - terminate on CRLF.
     while(length > 0 && *here != '\r' && *here != '\n'){
-        printf("Parsing Header\n");
         length = parseHeaderLine(here, there, length);
     }
 
@@ -281,7 +291,6 @@ void HttpRequest::parse(void* data, uint16_t length){
         ++here; --length;
     }
 
-    printf("Parsing Body\n");
     length = parseBody(here, there, length);
 
 
@@ -361,6 +370,15 @@ void* HttpTransaction::operator new(size_t size, Block* block){
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+Webserver::Webserver()
+:appCount(0)
+{
+    for(int i=0; i<MAX_APPS; ++i){
+        apps[i] = 0;
+    }
+}
+
+
 void Webserver::connected(Connection* connection){
     printf("connected\n");
 
@@ -413,8 +431,11 @@ err_t Webserver::receive(Connection* connection, void* data, uint16_t length){
     printf("Looking for webapp for %s : %s\n",tx->request().verb(), tx->request().path());
     WebApp* app = &webapp404;
     for(int i=0; i<appCount; ++i){
+        printf("App %d matches?\n",i);
         if(apps[i]->matches(tx->request().verb(), tx->request().path())) {
             app = apps[i];
+            printf("Found webapp %d\n",i);
+            break;
         }
     }
     app->process(tx->request(), tx->response());

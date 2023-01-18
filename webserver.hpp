@@ -119,6 +119,8 @@ class Webserver: public ServerApplication {
     uint appCount;
 
     public:
+    Webserver();
+    
     virtual void connected(Connection* connection);
     virtual void closed(Connection* connection);
     virtual err_t receive(Connection* connection, void* data, uint16_t length);

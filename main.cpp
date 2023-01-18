@@ -7,10 +7,12 @@ extern "C" {
 #include "server.hpp"
 #include "webserver.hpp"
 #include "neopixel_webapp.hpp"
+#include "teapot.hpp"
 
 WifiStation station;
 Webserver webserver;
 NeopixelWebapp webapp;
+Teapot teapot; // respondes to /coffee with 418...
 
 // TODO GET /favicon.ico HTTP/1.1
 // TODO - better 404 support
@@ -43,6 +45,7 @@ int main() {
         if(station.connect(ssid, password, 30000)) {
 
             webserver.addAppliction(&webapp);
+            webserver.addAppliction(&teapot);
 
             TcpServer server(&webserver);
             if(server.open(8080)){
