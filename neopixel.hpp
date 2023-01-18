@@ -6,7 +6,11 @@
 #include "pico/util/queue.h"
 #include "hardware/pio.h"
 
-#define PIXEL_COUNT (64)
+#define GRID_WIDTH (8)
+#define GRID_HEIGHT (8)
+#define PIXEL_COUNT (GRID_WIDTH * GRID_HEIGHT)
+#define SCALE (10000.0f)  // for sending floats via ints
+
 
    // Pixel format is:  GGRRBBWW
     // With input in top left and words on silk screen in normal orientation
@@ -21,7 +25,7 @@ class NeopixelGrid;
 
 struct Command{
     uint16_t code;
-    uint32_t params[8];
+    int32_t params[8];
 };
 
 class Action{
@@ -30,7 +34,13 @@ class Action{
     virtual void start(NeopixelGrid* grid, Command* cmd) = 0;
 };
 
-
+class Coordinate {
+    public:
+    float x;
+    float y;
+    float r;
+    float theta;
+};
 
 class NeopixelGrid {
 
@@ -68,16 +78,23 @@ class NeopixelGrid {
     uint cycle;
     Action* currentAction;
     queue_t commandQueue;
+    Coordinate coordinates[PIXEL_COUNT];
 
+    void initialiseCoordinates();
+
+ 
     public:
     NeopixelGrid();
     void send();
-    void set(uint32_t rgb, uint8_t white);
+    void set(uint32_t rgb, uint8_t white);  // whole grid
     void tick(); // to run commands, animate etc.
-    
+
+    static uint32_t hsvToRgb(float h, float s, float v); 
+   
     bool run(Command* cmd); // true if accepted to run.
 
     void setAsync(uint32_t rgb, uint8_t white);
+    void colourChangeAsync(float value, float increment, uint8_t white);
 };
 
 

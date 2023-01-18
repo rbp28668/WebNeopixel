@@ -23,6 +23,7 @@ class Parameter {
     void setValue(const char* value) { _value = value;}
     int asInt();
     uint32_t asRgb();
+    float asFloat();
 };
 
 class Header {

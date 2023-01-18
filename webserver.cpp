@@ -26,6 +26,12 @@ uint32_t Parameter::asRgb(){
     return strtol(pos, 0, 16);
 }
 
+/// @brief Convenience method to get value as a float.
+/// @return value as a float.
+float Parameter::asFloat(){
+    return atof(_value);
+}
+
 ////////////////////////////////////////////////////////////////////
 // Header
 
