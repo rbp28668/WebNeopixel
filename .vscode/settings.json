@@ -2,6 +2,22 @@
     "files.associations": {
         "*.tcc": "cpp",
         "fstream": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "optional": "cpp",
+        "istream": "cpp",
+        "ostream": "cpp",
+        "system_error": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "concepts": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "memory": "cpp",
+        "string_view": "cpp",
+        "sstream": "cpp",
+        "streambuf": "cpp"
     }
 }

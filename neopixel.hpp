@@ -82,19 +82,28 @@ class NeopixelGrid {
 
     void initialiseCoordinates();
 
- 
+    void sendRippleCmd(uint16_t code, float hue, float hue2, float value, float increment, float count, uint8_t white );
+
     public:
     NeopixelGrid();
     void send();
     void set(uint32_t rgb, uint8_t white);  // whole grid
+    void setPixel(int idx, uint32_t rgb, uint8_t white);  // single pixel
+    
     void tick(); // to run commands, animate etc.
 
     static uint32_t hsvToRgb(float h, float s, float v); 
+    static uint32_t hvToRgb(float hue, float value); // assumes s = 1
    
+    const Coordinate& coordinate(int idx) { return coordinates[idx];}
     bool run(Command* cmd); // true if accepted to run.
 
     void setAsync(uint32_t rgb, uint8_t white);
     void colourChangeAsync(float value, float increment, uint8_t white);
+    void rippleAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
+    void spokesAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
+    void horizontalAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
+    void verticalAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
 };
 
 
