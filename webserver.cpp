@@ -441,14 +441,12 @@ err_t Webserver::receive(Connection* connection, void* data, uint16_t length){
     app->process(tx->request(), tx->response());
  
     const char* value = tx->response().protocolLine();
-    printf("Sending response %s\n", value);
     connection->send((uint8_t*)value, strlen(value));
 
     BlockListIter<Header> iter = tx->response().headers().iter();
     Header* h;
     while( (h = iter.next()) != 0){
         value = h->toSend(block);
-        printf("Sending header %s\n", value);
         connection->send((uint8_t*)value, strlen(value));
     }
     

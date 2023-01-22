@@ -279,16 +279,30 @@ NeopixelGrid::NeopixelGrid()
 : currentAction(0)
 , cycle_time(100)
 , cycle(100)
+, pio(pio0)
+, sm(0)
+, pixels(buffer)
 {
-   // todo get free sm
-    PIO pio = pio0;
-    int sm = 0;
-    uint offset = pio_add_program(pio, &ws2812_program);
 
+    // Setup PIO
+    pio_sm_claim(pio, sm); // check not used by any other library in the future.
+    uint offset = pio_add_program(pio, &ws2812_program);
     ws2812_program_init(pio, sm, offset, WS2812_PIN, 800000, IS_RGBW);
 
-    for(int i=0; i<PIXEL_COUNT; ++i){
-        pixels[i] = 0;
+    // Setup DMA for writing to pixels.
+    DmaConfig cfg = dma.getDefaultConfig();
+    cfg.bswap(false);
+    cfg.transferDataSize(DMA_SIZE_32);
+    cfg.dreq(pio_get_dreq(pio,sm,true));
+    cfg.enable(true);
+    cfg.readIncrement(true);
+    cfg.writeIncrement(false);
+    dma.configure(cfg, &pio->txf[sm], 0, 64);
+    
+   
+    // Zero the pixel buffer.
+    for(int i=0; i<PIXEL_COUNT*2; ++i){
+        buffer[i] = 0;
     }
 
     queue_init(	&commandQueue, sizeof(Command), 16);
@@ -426,11 +440,22 @@ uint32_t NeopixelGrid::hvToRgb(float hue, float value){
 
 
 /// @brief Sends the array of pixels to the display.
-/// TODO - use DMA
 void NeopixelGrid::send(){
-    for(int i=0; i<PIXEL_COUNT; ++i){
-        pio_sm_put_blocking(pio0, 0, pixels[i]);
+    dma.waitForFinish();
+    dma.fromBufferNow((void*)pixels, 64);
+    
+    // Flip buffer pointer for double buffering so we don't
+    // write into the memory the DMA is writing.
+    if(pixels == buffer) {
+        pixels = buffer + PIXEL_COUNT;
+    } else {
+        pixels = buffer;
     }
+
+    // Old implementation.
+    // for(int i=0; i<PIXEL_COUNT; ++i){
+    //     pio_sm_put_blocking(pio0, 0, pixels[i]);
+    // }
 }
 
 void NeopixelGrid::set(uint32_t rgb, uint8_t white){

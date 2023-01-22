@@ -5,6 +5,7 @@
 #include "pico/stdlib.h"
 #include "pico/util/queue.h"
 #include "hardware/pio.h"
+#include "dma.hpp"
 
 #define GRID_WIDTH (8)
 #define GRID_HEIGHT (8)
@@ -28,18 +29,20 @@ struct Command{
     int32_t params[8];
 };
 
+/// @brief interface for animated patterns.
 class Action{
     public:
     virtual void tick() = 0;
     virtual void start(NeopixelGrid* grid, Command* cmd) = 0;
 };
 
+/// @brief Holds normalised coordinates of a pixel
 class Coordinate {
     public:
-    float x;
-    float y;
-    float r;
-    float theta;
+    float x;    // normalised to range -1 .. 1
+    float y;    // normalised to range -1 .. 1
+    float r;    // normalised to range 0 .. 1.414  (in the corners, 1 at edge)
+    float theta; // -PI to +PI
 };
 
 class NeopixelGrid {
@@ -47,7 +50,13 @@ class NeopixelGrid {
     uint32_t colour;
     uint32_t white;
 
-    uint32_t pixels[PIXEL_COUNT];
+    uint32_t buffer[2*PIXEL_COUNT]; // Allow for double buffering.
+    uint32_t* pixels;
+
+    PIO pio; // which PIO is in use to drive the pixels.
+    uint sm; // and which statemachine is in use.
+
+    Dma dma; // to shovel pixels to the PIO
 
     const uint32_t RED = 0x00FF0000;
     const uint32_t GREEN = 0xFF000000;
@@ -55,9 +64,9 @@ class NeopixelGrid {
     const uint32_t WHITE = 0x000000FF;
 
 
-    static inline void put_pixel(uint32_t pixel) {
-        pio_sm_put_blocking(pio0, 0, pixel);
-    }
+    // inline void put_pixel(uint32_t pixel) {
+    //     pio_sm_put_blocking(pio, sm, pixel);
+    // }
 
     static inline uint32_t rgb(uint8_t r, uint8_t g, uint8_t b) {
         return

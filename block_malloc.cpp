@@ -129,7 +129,6 @@ BlockPool::BlockPool()
 /// @brief Looks for a block marked as unallocated.
 /// @return newly allocated block or 0 if all in use.
 Block* BlockPool::allocate(){
-    printf("Allocating from block pool at %08x\n", this);
     Block* found = 0;
     for(int i=0; i<BLOCK_COUNT; ++i) {
         if(blocks[position].isAllocated()) {
@@ -141,7 +140,6 @@ Block* BlockPool::allocate(){
             break;
         }
     }
-    printf("Allocated block at %08x\n", found);
     return found;
 }
 
