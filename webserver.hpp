@@ -49,6 +49,7 @@ class HttpRequest{
     BlockList<Parameter> _Parameters;
     BlockList<Header> _headers;
     char* _body;
+    bool _complete;
 
     const char* parseMessage;
 
@@ -60,6 +61,8 @@ class HttpRequest{
     HttpRequest(Block* block);
     ~HttpRequest();
  
+    bool isComplete() const { return _complete;}
+
     const char* verb() { return _verb;}
     const char* path() { return _path;}
     const char* protocol() { return _protocol;}
@@ -76,7 +79,7 @@ class HttpResponse{
     int statusCode;
     const char* statusMsg;
     const char* body;
-
+ 
     public:
     HttpResponse(Block* block);
 
@@ -88,22 +91,27 @@ class HttpResponse{
     BlockList<Header>& headers() {return _headers;}
     const char* getBody() { return body;}
 
-};
+ };
 
 
 class HttpTransaction {
-    Block* block;  // memory for this and children
+    Block* _block;  // memory for this and children
     HttpRequest _request;
     HttpResponse _response;
-
+    size_t bytesToSend; // track outstanding response bytes.
+ 
     public:
     HttpTransaction(Block* block);
     ~HttpTransaction();
-    void* operator new(size_t size, Block* block);
-    void operator delete  ( void* ptr ) noexcept {assert(false);} // need to call block->free for memory.
-
+    static void* operator new(size_t size, Block* block);
+    static void operator delete(void* mem) {}
     HttpRequest& request() { return _request;}
     HttpResponse& response() { return _response;}
+    Block* getBlock() { return _block;}
+
+    void setSendSize(size_t byteCount) {bytesToSend = byteCount;}
+    void sent(size_t bytes) { bytesToSend -= bytes;}
+    bool sendComplete() { return bytesToSend == 0;}
 };
 
 class WebApp {
@@ -117,6 +125,8 @@ class Webserver: public ServerApplication {
     
     WebApp* apps[MAX_APPS];
     uint appCount;
+
+    size_t sendResponse(HttpTransaction* tx, Connection* connection);
 
     public:
     Webserver();

@@ -136,7 +136,7 @@ Block* BlockPool::allocate(){
         } else { // not allocated
             found = blocks + position;
             found->allocateBlock(this);
-            ++position; // for next time
+            position = (position + 1) % BLOCK_COUNT; // for next time
             break;
         }
     }

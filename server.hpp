@@ -11,7 +11,11 @@
 
 // Interface to describe a TCP connection from the application's point of view.
 class Connection{
+    void* _appState;
     public:
+    void setAppState(void* state) {_appState = state;}
+    void* getAppState() const { return _appState;}
+    
     virtual err_t send(uint8_t* data, size_t len, bool moreToCome=false) = 0;
     virtual err_t close() = 0;
     virtual bool isOpen() = 0;

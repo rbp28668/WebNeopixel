@@ -76,6 +76,7 @@ static char decode(char msHex, char lsHex){
 
 HttpRequest::HttpRequest(Block* block)
 : block(block)
+, _complete(false)
 , _verb(0) 
 , _path(0)
 , _protocol(0)
@@ -293,7 +294,7 @@ void HttpRequest::parse(void* data, uint16_t length){
 
     length = parseBody(here, there, length);
 
-
+    _complete = true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -354,9 +355,10 @@ const char* HttpResponse::protocolLine(){
 
 
 HttpTransaction::HttpTransaction(Block* block)
-: _request(block)
+: _block(block)
+, _request(block)
 , _response(block){
-
+    assert(block);
 }
 
 
@@ -381,12 +383,17 @@ Webserver::Webserver()
 
 void Webserver::connected(Connection* connection){
     printf("connected\n");
-
+    connection->setAppState(0); // no existing transaction as new connection
 }
 
 void Webserver::closed(Connection* connection){
-   printf("closed\n");
-
+    printf("closed\n");
+    HttpTransaction* tx = (HttpTransaction*)connection->getAppState();
+    if(tx) {
+        Block* block = tx->getBlock();
+        block->free();
+        connection->setAppState(0);
+    }
 }
 
 // GET /hello.txt HTTP/1.1
@@ -404,68 +411,95 @@ err_t Webserver::receive(Connection* connection, void* data, uint16_t length){
         putchar(text[i]);
     }
     printf("==================================\n");
-    Block* block = blockPool.allocate();
-    if(block == 0){
-        printf("No memory to handle request");
-        const char* header = "HTTP/1.1 500 No memory\r\n";
-        connection->send((uint8_t*)header, strlen(header));
-        return ERR_OK;
-    }
 
-    printf("Create transaction\n");
-    HttpTransaction* tx = new(block) HttpTransaction(block);
-    printf("Parsing request\n");
-    tx->request().parse(data, length);
+    // check for existing transaction
+    HttpTransaction* tx = static_cast<HttpTransaction*>(connection->getAppState());
+    if(tx == 0){
+        Block* block = blockPool.allocate();
+        if(block == 0){
+            printf("No memory to handle request");
+            const char* header = "HTTP/1.1 500 No memory\r\n";
+            connection->send((uint8_t*)header, strlen(header));
+            return ERR_OK;
+        }
+
+        printf("Create transaction\n");
+        tx = new(block) HttpTransaction(block);
+        connection->setAppState(tx);
+
+        printf("Parsing request\n");
+        tx->request().parse(data, length);
+    } else {
+        // There's an existing request and some more data here.
+    }
     
+    // bail out if request parsing failed.
     const char* fail = tx->request().failureMessage();
     if(fail){
         connection->send((uint8_t*)fail, strlen(fail));
         return ERR_OK;
     }
 
-    // TODO sort out logic - if existing http request then add to it
-    // Connection needs to store a pointer to tx to manage this - HttpTransaction
-    // will store the state of the request (may arrive in multiple parts) and the
-    // response (may need to be built up and sent piecemeal)
-
-    printf("Looking for webapp for %s : %s\n",tx->request().verb(), tx->request().path());
-    WebApp* app = &webapp404;
-    for(int i=0; i<appCount; ++i){
-        printf("App %d matches?\n",i);
-        if(apps[i]->matches(tx->request().verb(), tx->request().path())) {
-            app = apps[i];
-            printf("Found webapp %d\n",i);
-            break;
+    // If request is complete then process & send result
+    if(tx->request().isComplete()){
+        
+        // Find a webapp to process the request (404 is default)
+        WebApp* app = &webapp404;
+        for(int i=0; i<appCount; ++i){
+            if(apps[i]->matches(tx->request().verb(), tx->request().path())) {
+                app = apps[i];
+                break;
+            }
         }
-    }
-    app->process(tx->request(), tx->response());
- 
-    const char* value = tx->response().protocolLine();
-    connection->send((uint8_t*)value, strlen(value));
-
-    BlockListIter<Header> iter = tx->response().headers().iter();
-    Header* h;
-    while( (h = iter.next()) != 0){
-        value = h->toSend(block);
-        connection->send((uint8_t*)value, strlen(value));
-    }
+        app->process(tx->request(), tx->response());
     
-    // Blank line after any headers.
-    value = "\r\n";
-    connection->send((uint8_t*)value, strlen(value));
-
-    // Followed by (optional) body.
-    value = tx->response().getBody();
-    if(value){
-        connection->send((uint8_t*)value, strlen(value));
+        sendResponse(tx, connection);
     }
-
-    // TODO should really only do this when all the data is sent.
-    block->free(); // Assumes whole process in one hit.
 
     return ERR_OK;
 
 }
+
+size_t Webserver::sendResponse(HttpTransaction* tx, Connection* connection){
+    assert(tx);
+    assert(tx->getBlock());
+    assert(connection);
+
+    size_t bytesToSend = 0;
+    size_t len;
+
+    const char* value = tx->response().protocolLine();
+    len = strlen(value);
+    connection->send((uint8_t*)value, len);
+    bytesToSend += len;
+
+    BlockListIter<Header> iter = tx->response().headers().iter();
+    Header* h;
+    while( (h = iter.next()) != 0){
+        value = h->toSend(tx->getBlock());
+        len = strlen(value);
+        connection->send((uint8_t*)value, len);
+        bytesToSend += len;
+   }
+    
+    // Blank line after any headers.
+    value = "\r\n";
+    len = strlen(value);
+    connection->send((uint8_t*)value, len);
+    bytesToSend += len;
+
+    // Followed by (optional) body.
+    value = tx->response().getBody();
+    if(value){
+        len = strlen(value);
+        connection->send((uint8_t*)value, len);
+        bytesToSend += len;
+    }
+
+    tx->setSendSize(bytesToSend);
+    return bytesToSend;
+}
+
 
 err_t Webserver::poll(Connection* connection){
     return ERR_OK;
@@ -474,15 +508,33 @@ err_t Webserver::poll(Connection* connection){
 
 void Webserver::error(Connection* connection, err_t err){
     printf("Error %d\n", err);
-
+    HttpTransaction* tx = static_cast<HttpTransaction*>(connection->getAppState());
+    if(tx){
+        Block* block = tx->getBlock();
+        block->free();
+        connection->setAppState(0);
+        connection->close(); // if not already.
+    }
 }
 
 err_t Webserver::sent(Connection* connection, u16_t bytesSent){
     printf("sent %d\n", bytesSent);
-    connection->close();
+    HttpTransaction* tx = static_cast<HttpTransaction*>(connection->getAppState());
+    if(tx){
+        tx->sent(bytesSent);
+        if(tx->sendComplete()){
+            Block* block = tx->getBlock();
+            block->free();
+            connection->setAppState(0);
+            connection->close(); 
+        }
+    }
     return ERR_OK;
 }
 
+/// @brief Adds a WebApp to the server.
+/// @param app is the app to add.
+/// @return true if added, false if no space.
 bool Webserver::addAppliction(WebApp* app){
     assert(app);
     if(appCount == MAX_APPS) return false;
