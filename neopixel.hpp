@@ -98,6 +98,7 @@ class NeopixelGrid {
     void send();
     void set(uint32_t rgb, uint8_t white);  // whole grid
     void setPixel(int idx, uint32_t rgb, uint8_t white);  // single pixel
+    void setPixelRaw(int idx, uint32_t rgbw);  // single pixel in Neopixel format
     
     void tick(); // to run commands, animate etc.
 
@@ -108,11 +109,13 @@ class NeopixelGrid {
     bool run(Command* cmd); // true if accepted to run.
 
     void setAsync(uint32_t rgb, uint8_t white);
+    void rateAsync(unsigned int rate);
     void colourChangeAsync(float value, float increment, uint8_t white);
     void rippleAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
     void spokesAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
     void horizontalAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
     void verticalAsync(float hue, float hue2, float value, float increment, float count, uint8_t white);
+    void sparkleAsync();
 };
 
 

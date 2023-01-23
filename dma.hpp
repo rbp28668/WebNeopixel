@@ -40,7 +40,7 @@ class Dma {
     void start(){dma_channel_start(channel);}
     void fromBufferNow(const volatile void * readAddr, uint32_t transferCount){dma_channel_transfer_from_buffer_now(channel, readAddr, transferCount);}
     void toBufferNow(volatile void * writeAddr, uint32_t transferCount) {dma_channel_transfer_to_buffer_now(channel, writeAddr, transferCount);}
-    void waitForFinish(){dma_channel_wait_for_finish_blocking(channel);}
+    volatile void waitForFinish(){dma_channel_wait_for_finish_blocking(channel);}
    
 };
 

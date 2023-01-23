@@ -80,6 +80,24 @@ void ColourChangeAction::start(NeopixelGrid* grid, Command* cmd){
     this->increment = (1.0f/ SCALE) * (float)cmd->params[1];
     this->white = cmd->params[2];
 }
+////////////////////////////////////////////////////////////////////////////////////////////
+class SparkleAction: public Action {
+    NeopixelGrid* grid;
+    public:
+    virtual void tick();
+    virtual void start(NeopixelGrid* grid, Command* cmd);
+};
+
+void SparkleAction::tick(){
+    for (int i = 0; i < PIXEL_COUNT; ++i){
+        grid->setPixel(i, rand() % 16 ? 0 : 0xffffffff, 0);
+    }
+    grid->send();
+}
+
+void SparkleAction::start(NeopixelGrid* grid, Command* cmd){
+    this->grid = grid;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 // Utility base class for actions
@@ -267,6 +285,7 @@ void SpokesAction::start(NeopixelGrid* grid, Command* cmd){
 NullAction nullAction;
 SetAction setAction;
 ColourChangeAction colourChangeAction;
+SparkleAction sparkleAction;
 RipplesAction ripplesAction;
 SpokesAction spokesAction;
 HorizontalAction horizontalAction;
@@ -277,8 +296,8 @@ VerticalAction verticalAction;
 
 NeopixelGrid::NeopixelGrid()
 : currentAction(0)
-, cycle_time(100)
-, cycle(100)
+, cycle_time(1)
+, cycle(1)
 , pio(pio0)
 , sm(0)
 , pixels(buffer)
@@ -441,7 +460,10 @@ uint32_t NeopixelGrid::hvToRgb(float hue, float value){
 
 /// @brief Sends the array of pixels to the display.
 void NeopixelGrid::send(){
-    dma.waitForFinish();
+    while(dma.isBusy()){
+        ::sleep_ms(1);
+    }
+    //dma.waitForFinish();
     dma.fromBufferNow((void*)pixels, 64);
     
     // Flip buffer pointer for double buffering so we don't
@@ -488,6 +510,10 @@ void NeopixelGrid::setPixel(int idx, uint32_t rgb, uint8_t white){
     pixels[idx] = rgbw(r,g,b,white);
 }
 
+void NeopixelGrid::setPixelRaw(int idx, uint32_t rgbw){
+    assert(idx >= 0 && idx < PIXEL_COUNT);
+    pixels[idx] = rgbw;
+}
 
 void NeopixelGrid::tick() {
     if(!queue_is_empty(&commandQueue)){
@@ -504,7 +530,8 @@ void NeopixelGrid::tick() {
                 break;
 
                 case 2:  // set cycle time for animation.
-                cycle_time = cmd.params[1];
+                cycle_time = cmd.params[0];
+                cycle = cycle_time;
                 break;
 
                 case 3:  // Colour cycle.
@@ -532,6 +559,10 @@ void NeopixelGrid::tick() {
                 verticalAction.start(this, &cmd);
                 break;
 
+               case 8:
+               currentAction = &sparkleAction;
+               sparkleAction.start(this, &cmd);
+               break;
             }
         }
     }
@@ -554,7 +585,7 @@ void run_neopixel() {
     grid.send();
     while(true) {
         grid.tick();
-        sleep_ms(1);
+        ::sleep_ms(1); 
     }
 }
 
@@ -565,6 +596,14 @@ void NeopixelGrid::setAsync(uint32_t rgb, uint8_t white){
     cmd.params[1] = white;
     run(&cmd);
 }
+
+void NeopixelGrid::rateAsync(unsigned int rate){
+    Command cmd;
+    cmd.code = 2; // set rate
+    cmd.params[0] = rate;
+    run(&cmd);
+}
+ 
 
 void NeopixelGrid::colourChangeAsync(float value, float increment, uint8_t white){
     Command cmd;
@@ -601,4 +640,10 @@ void NeopixelGrid::horizontalAsync(float hue, float hue2, float value, float inc
 
 void NeopixelGrid::verticalAsync(float hue, float hue2, float value, float increment, float count, uint8_t white){
     sendRippleCmd(7, hue, hue2, value, increment, count, white);
+}
+
+void NeopixelGrid::sparkleAsync(){
+    Command cmd;
+    cmd.code = 8;  // sparkle
+    run(&cmd);
 }

@@ -24,11 +24,13 @@ bool NeopixelWebapp::matches(const char* verb, const char* path){
     if(strcmp(verb,"GET") == 0) {
         accept = 
             strncmp(path,"/set",4) == 0 ||
+            strncmp(path,"/cycle",6) == 0 ||
             strncmp(path,"/colour",7) == 0 ||
             strncmp(path,"/ripples",8) == 0 ||
             strncmp(path,"/spokes",7) == 0 ||
             strncmp(path,"/horizontal",11) == 0 ||
             strncmp(path,"/vertical",9) == 0 ||
+            strncmp(path,"/sparkle",8) == 0 ||
             strncmp(path,"/show",5) == 0 ||
             false;
             ;
@@ -40,7 +42,7 @@ bool NeopixelWebapp::matches(const char* verb, const char* path){
 void NeopixelWebapp::process( HttpRequest& request, HttpResponse& response){
 
     printf("Neopixel Webapp Processing request for %s\n",request.path());
-
+    unsigned int rate = 1;
     uint32_t rgb = 0;
     int w = 0;
     float increment = 0.1f;
@@ -53,6 +55,7 @@ void NeopixelWebapp::process( HttpRequest& request, HttpResponse& response){
     Parameter* p;
     while(p = iter.next()){
         printf("Parameter %s -> %s\n", p->name(), p->value());
+        if(strcmp(p->name(), "rate") == 0) rate = (unsigned) p->asInt();
         if(strcmp(p->name(), "white") == 0) w = p->asInt();
         if(strcmp(p->name(), "rgb") == 0) rgb = p->asRgb();
         if(strcmp(p->name(), "inc") == 0) increment = p->asFloat();
@@ -64,24 +67,21 @@ void NeopixelWebapp::process( HttpRequest& request, HttpResponse& response){
     }
 
     if(strncmp(request.path(),"/set",4) == 0) {
-        printf("Set colour %06X, white %d\n", rgb,w);
-        grid.setAsync(rgb, w);
-    
+         grid.setAsync(rgb, w);
+    } else if(strncmp(request.path(),"/cycle",6) == 0) {
+        grid.rateAsync(rate);
     } else if (strncmp(request.path(),"/colour",7) == 0){
-        printf("Set colour change %06X, white %d\n", rgb,w);
         grid.colourChangeAsync(value, increment, w);
     } else if (strncmp(request.path(),"/ripples",8) == 0) {
-        printf("Set ripples\n");
         grid.rippleAsync(hue, hue2, value, (int) increment, count, w);
     } else if (strncmp(request.path(),"/spokes",7) == 0) {
-        printf("Set spokes\n");
         grid.spokesAsync(hue, hue2, value, increment, count, w);
     } else if (strncmp(request.path(),"/horizontal",11) == 0) {
-        printf("Set horizontal\n");
         grid.horizontalAsync(hue, hue2, value, increment, count, w);
     } else if (strncmp(request.path(),"/vertical",9) == 0) {
-        printf("Set vertical\n");
         grid.verticalAsync(hue, hue2, value, increment, count, w);
+    } else if (strncmp(request.path(),"/sparkle",8) == 0) {
+        grid.sparkleAsync();
     } else if (strncmp(request.path(),"/show",5) == 0)  {
         printf("Radius\n");
         int idx = 0;
