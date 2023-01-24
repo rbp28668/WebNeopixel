@@ -535,7 +535,7 @@ err_t Webserver::sent(Connection* connection, u16_t bytesSent){
 /// @brief Adds a WebApp to the server.
 /// @param app is the app to add.
 /// @return true if added, false if no space.
-bool Webserver::addAppliction(WebApp* app){
+bool Webserver::addApplication(WebApp* app){
     assert(app);
     if(appCount == MAX_APPS) return false;
     apps[appCount++] = app;

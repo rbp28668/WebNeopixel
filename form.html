@@ -1,12 +1,333 @@
 <html>
-    <head></head>
-    <body>
-        <form action="/set" method="get">
-            <label for="brt">White Brightness</label>
-            <input type="number" id="brt" value="0" min="0" max="255" name="brt"><br>
-            <label for="rgb">RGB Colour:</label>
-            <input type="color" id="rgb" name="rgb"><br>
-            <input type="submit" value="Submit">
-        </form>
-    </body>
+<head>
+    <title>PicoW NeoPixel</title>
+    <style>
+        .grid {
+            display: grid;
+            column-gap: 20px;
+            row-gap: 10px;
+            grid-template-columns: 100px auto auto;
+        }
+        legend {
+            font-style: italic;
+            font-weight: bold;
+        }
+        fieldset {
+            margin-bottom:7px;
+        }
+        canvas {
+            border: 1px solid #000000;
+            height: 20;
+            width: 256;
+            grid-column: 2;
+        }
+        input[type='range'] {
+            width: 256px;
+            grid-column: 2;
+
+        }
+        label {
+            grid-column: 1;
+        }
+
+        .c3 {
+            grid-column: 3;
+        }
+
+        .r1 {
+            grid-row: 1;
+        }
+
+        .r2 {
+            grid-row: 2;
+        }
+
+        .r3 {
+            grid-row: 3;
+        }
+
+        .r4 {
+            grid-row: 4;
+        }
+    </style>
+
+    <script>
+
+// Values for just setting the lamps.
+var hue = 0;
+var saturation = 1;
+var value = 1;
+var white = 0;
+
+// values for ripple.
+var hue1 = 0;
+var hue2 = 0.5;
+var rValue = 1.0;
+var inc = 1;
+var count = 2;
+var rWhite = 0;
+
+function hsvToRgb( hue,  saturation, value){
+    let r = g = b = 0;
+
+    if(hue > 1.0) hue = 1.0;
+    if(saturation > 1.0) saturation = 1.0;
+    if(value > 1.0) value = 1.0;
+
+    const h = Math.floor(hue * 6);
+    const f = hue * 6 - h;
+    const p = value * (1 - saturation);
+    const q = value * (1 - f * saturation);
+    const t = value * (1 - (1 - f) * saturation);
+
+    if (h == 0) {
+        r = value;
+        g = t;
+        b = p;
+    } else if (h == 1) {
+        r = q;
+        g = value;
+        b = p;
+    } else if (h == 2) {
+        r = p;
+        g = value;
+        b = t;
+    } else if (h == 3) {
+        r = p;
+        g = q;
+        b = value;
+    } else if (h == 4) {
+        r = t;
+        g = p;
+        b = value;
+    } else if (h <= 6) {
+        r = value;
+        g = p;
+        b = q;
+    } 
+
+    function hex(v){
+        let h = Math.floor(v).toString(16);
+        return h.length == 1 ? '0'+ h : h;
+    }
+
+    const rgb = '#' + 
+        hex(r * 255) +
+        hex(g * 255)  +
+        hex(b * 255);
+    return rgb;
+}
+// Function for filling in the hue picker
+function h2RGB(hue, data, index) {
+
+    let r = g = b = 0;
+
+    if (hue > 1.0) hue = 1.0;
+
+    let h = Math.floor(hue * 6);
+    let f = hue * 6 - h;
+    let p = 0;
+    let q = (1 - f);
+    let t = f;
+
+    if (h == 0) {
+        r = 1;
+        g = t;
+        b = p;
+    } else if (h == 1) {
+        r = q;
+        g = 1;
+        b = p;
+    } else if (h == 2) {
+        r = p;
+        g = 1;
+        b = t;
+    } else if (h == 3) {
+        r = p;
+        g = q;
+        b = 1;
+    } else if (h == 4) {
+        r = t;
+        g = p;
+        b = 1;
+    } else if (h <= 6) {
+        r = 1;
+        g = p;
+        b = q;
+    }
+
+    data[index + 0] = Math.floor(r * 255);
+    data[index + 1] = Math.floor(g * 255);
+    data[index + 2] = Math.floor(b * 255);
+    data[index + 3] = 255;
+
+}
+
+function drawRGB(name, onclick) {
+    var c = document.getElementById(name);
+    var ctx = c.getContext("2d");
+
+    const imageData = ctx.getImageData(0, 0, c.width, c.height);
+    const data = imageData.data;
+    let index = 0;
+    for (let iy = 0; iy < imageData.height; iy++) {
+        for (let ix = 0; ix < imageData.width; ix++) {
+            h2RGB(ix / imageData.width, data, index);
+            index += 4; // bytes per pixel
+        }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    function pick(event) {
+        const bounding = c.getBoundingClientRect();
+        const x = event.clientX - bounding.left;
+        const y = event.clientY - bounding.top;
+        const hue = x / bounding.width;
+        if(onclick){
+            onclick(hue);
+        }
+        return hue;
+    }
+
+    c.addEventListener("click", (event) => pick(event, undefined));
+}
+
+// Send settings for colour & brightness
+function sendCB(){
+    const url = new URL("/set", document.baseURI);
+    const rgb = hsvToRgb( hue,  saturation, value);
+    url.search=`?rgb=${rgb}&white=${Math.floor(white*255)}`;
+    let pr = fetch(url, {
+        method: 'GET',
+    });
+}
+function setBright(b){
+    value = b;
+    sendCB();
+};
+function setSat(s){
+    saturation = s;
+    sendCB();
+};
+function setWhite(w){
+    white = w;
+    sendCB();
+}
+
+function sendRipple(path){
+
+    let ctrl = document.getElementById("value");
+    const value = ctrl.value;
+    ctrl = document.getElementById("inc");
+    const inc = ctrl.value;
+    ctrl = document.getElementById("count");
+    const count = ctrl.value;
+    ctrl = document.getElementById("w2");
+    const white = ctrl.value;
+
+    const url = new URL(path, document.baseURI);
+    url.search=`?hue=${hue1}&hue2=${hue2}&value=${value}&white=${Math.floor(white*255)}&count=${count}&inc=${inc}`;
+    let pr = fetch(url, {
+        method: 'GET',
+    });
+
+}
+function sendRate(){
+let ctrl = document.getElementById("rate");
+const rate = ctrl.value;
+const url = new URL("/cycle",document.baseURI);
+url.search=`?rate=${rate}`;
+let pr = fetch(url, {
+    method: 'GET',
+});
+}
+function sendSparkle(){
+    const url = new URL("/sparkle",document.baseURI);
+    let pr = fetch(url, {
+    method: 'GET',
+    });
+}
+
+function configure(){
+    drawRGB("rgbPicker", function(h){
+        hue = h;
+        sendCB();
+    });
+
+    drawRGB('hue1', function(h){
+        hue1 = h;
+    });
+
+    drawRGB('hue2', function(h){
+        hue2 = h;
+    });
+}
+
+    </script>
+</head>
+
+<body onload="configure()">
+    <fieldset>
+        <legend>Set colour and brightness</legend>
+        <div class="grid">
+
+            <label for="rgbPicker">Colour</label>
+            <canvas id="rgbPicker"> </canvas>
+            
+            <label for="brightness">Brightness</label>
+            <input id="brightness" type="range" min="0" max="1.0" step="0.001" value="0.5"
+                onchange="setBright(this.value)" />
+            <label for="sat">Saturation</label>
+            <input id="sat" type="range" min="0" max="1.0" step="0.001" value="0.5"
+                onchange="setSat(this.value)" />
+            <label for="white">White</label>
+            <input id="white" type="range" min="0" max="1.0" step="0.001" value="0.5"
+                onchange="setWhite(this.value)" />
+        </div>
+    </fieldset>
+    <fieldset>
+        <legend>Animated Waves</legend>
+        <div class="grid">
+
+            <label for="hue1">Colour</label>
+            <canvas id="hue1"> </canvas>
+
+            <label for="hue2">Back Colour</label>
+            <canvas id="hue2"> </canvas>
+
+            <label for="value">Brightness</label>
+            <input id="value" type="range" min="0" max="1.0" step="0.001" value="0.5" />
+
+            <label for="inc">Increment</label>
+            <input type="number" id="inc" value="1" min="0" max="255" name="brt"><br>
+            
+            <label for="count">count</label>
+            <input type="number" id="count" value="2" min="0" max="255" name="brt"><br>
+            
+            <label for="w2">White</label>
+            <input id="w2" type="range" min="0" max="1.0" step="0.001" value="0"/>
+            
+            <button class="r1 c3" onclick="sendRipple('/ripples')">Ripples</button>
+            <button class="r2 c3" onclick="sendRipple('/spokes')">Spokes</button>
+            <button class="r3 c3" onclick="sendRipple('/horizontal')">Horizontal</button>
+            <button class="r4 c3" onclick="sendRipple('/vertical')">Vertical</button>
+        </div>
+    </fieldset>
+    <fieldset>
+        <legend>Other</legend>
+        <div class="grid">
+            <button class="r1" onclick="sendSparkle()">Sparkle</button>
+         </div>
+    </fieldset>
+    <fieldset>
+        <legend>Update rate</legend>
+        <div class="grid">
+            <label for="rate">Increment</label>
+            <input type="number" id="rate" value="1" min="0" max="255" name="brt"><br>
+            <button class="r1 c3" onclick="sendRate()">Set Rate</button>
+        </div>
+    </fieldset>
+</body>
+
 </html>

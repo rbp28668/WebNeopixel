@@ -138,7 +138,7 @@ class Webserver: public ServerApplication {
     virtual void error(Connection* connection, err_t err);
     virtual err_t sent(Connection* connection, u16_t bytesSent);
 
-    bool addAppliction(WebApp* app);
+    bool addApplication(WebApp* app);
 };
 
 #endif

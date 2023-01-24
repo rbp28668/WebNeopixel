@@ -1,22 +1,6 @@
 #include "neopixel_webapp.hpp"
 #include "neopixel.hpp"
 
-static const char* form=
-"<html>"
-"<head></head>"
-"<body>"
-"<form action=\"/set\" method=\"get\">"
-"<label for=\"white\">White Brightness</label>"
-"<input type=\"number\" id=\"white\" value=\"0\" min=\"0\" max=\"255\" name=\"white\"><br>"
-"<label for=\"rgb\">RGB Colour:</label>"
-"<input type=\"color\" id=\"rgb\" name=\"rgb\"><br>"
-"<input type=\"submit\" value=\"Submit\">"
-"</form>"
-"</body>"
-"</html>"
-"\r\n";
-
-
 extern NeopixelGrid grid;  
 
 bool NeopixelWebapp::matches(const char* verb, const char* path){
@@ -111,6 +95,6 @@ void NeopixelWebapp::process( HttpRequest& request, HttpResponse& response){
 
     response.setStatus(200,"OK");
     response.addHeader("Server", "PicoW");
-    response.addHeader("Content-Type", "text/html");
-    response.setBody(form);
+    response.addHeader("Access-Control-Allow-Origin","*");
+    
 }

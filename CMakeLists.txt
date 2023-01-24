@@ -40,6 +40,7 @@ webapp404.cpp
 neopixel_webapp.cpp
 crc32.cpp
 teapot.cpp
+index.cpp
 )
 
 target_include_directories(neopixel PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
