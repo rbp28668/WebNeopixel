@@ -53,6 +53,9 @@
 
     <script>
 
+var baseURI = document.baseURI;
+//baseURI="http://192.168.0.62:8080";
+
 // Values for just setting the lamps.
 var hue = 0;
 var saturation = 1;
@@ -195,7 +198,7 @@ function drawRGB(name, onclick) {
 
 // Send settings for colour & brightness
 function sendCB(){
-    const url = new URL("/set", document.baseURI);
+    const url = new URL("/set", baseURI);
     const rgb = hsvToRgb( hue,  saturation, value);
     url.search=`?rgb=${rgb}&white=${Math.floor(white*255)}`;
     let pr = fetch(url, {
@@ -226,7 +229,7 @@ function sendRipple(path){
     ctrl = document.getElementById("w2");
     const white = ctrl.value;
 
-    const url = new URL(path, document.baseURI);
+    const url = new URL(path, baseURI);
     url.search=`?hue=${hue1}&hue2=${hue2}&value=${value}&white=${Math.floor(white*255)}&count=${count}&inc=${inc}`;
     let pr = fetch(url, {
         method: 'GET',
@@ -236,14 +239,28 @@ function sendRipple(path){
 function sendRate(){
 let ctrl = document.getElementById("rate");
 const rate = ctrl.value;
-const url = new URL("/cycle",document.baseURI);
+const url = new URL("/cycle",baseURI);
 url.search=`?rate=${rate}`;
 let pr = fetch(url, {
     method: 'GET',
 });
 }
 function sendSparkle(){
-    const url = new URL("/sparkle",document.baseURI);
+    const url = new URL("/sparkle",baseURI);
+    let pr = fetch(url, {
+    method: 'GET',
+    });
+}
+function sendColours(){
+    let ctrl = document.getElementById("value3");
+    const value = ctrl.value;
+    ctrl = document.getElementById("inc3");
+    const inc = ctrl.value / 1000;
+    ctrl = document.getElementById("w3");
+    const white = ctrl.value;
+
+    const url = new URL("/colour",baseURI);
+    url.search=`?value=${value}&white=${Math.floor(white*255)}&inc=${inc}`;
     let pr = fetch(url, {
     method: 'GET',
     });
@@ -318,6 +335,17 @@ function configure(){
         <legend>Other</legend>
         <div class="grid">
             <button class="r1" onclick="sendSparkle()">Sparkle</button>
+
+            <label for="value3">Brightness</label>
+            <input id="value3" type="range" min="0" max="1.0" step="0.001" value="0.5" />
+
+            <label for="inc3">Increment</label>
+            <input type="number" id="inc3" value="1" min="0" max="100" name="inc3"><br>
+            
+            <label for="w3">White</label>
+            <input id="w3" type="range" min="0" max="1.0" step="0.001" value="0"/>
+            <button class="r2 c3" onclick="sendColours()">Colours</button>
+
          </div>
     </fieldset>
     <fieldset>
